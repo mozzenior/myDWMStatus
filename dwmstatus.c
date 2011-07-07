@@ -70,6 +70,62 @@ mktimes(char *fmt, char *tzname)
 	return smprintf("%s", buf);
 }
 
+char *
+getbattery(char *base)
+{
+	char *path, line[513];
+	FILE *fd;
+	int descap, remcap;
+
+	descap = -1;
+	remcap = -1;
+
+	path = smprintf("%s/info", base);
+	fd = fopen(path, "r");
+	if (fd == NULL) {
+		perror("fopen");
+		exit(1);
+	}
+	free(path);
+	while (!feof(fd)) {
+		if (fgets(line, sizeof(line)-1, fd) == NULL)
+			break;
+
+		if (!strncmp(line, "present", 7))
+			if (strstr(line, " no"))
+				break;
+		if (!strncmp(line, "design capacity", 15))
+			if (sscanf(line+16, "%*[ ]%d%*[^\n]", &descap))
+				break;
+	}
+	fclose(fd);
+
+	path = smprintf("%s/state", base);
+	fd = fopen(path, "r");
+	if (fd == NULL) {
+		perror("fopen");
+		exit(1);
+	}
+	free(path);
+	while (!feof(fd)) {
+		if (fgets(line, sizeof(line)-1, fd) == NULL)
+			break;
+
+		if (!strncmp(line, "present", 7))
+			if (strstr(line, " no"))
+				break;
+		if (!strncmp(line, "remaining capacity", 18))
+			if (sscanf(line+19, "%*[ ]%d%*[^\n]", &remcap))
+				break;
+	}
+	fclose(fd);
+
+	if (remcap < 0 || descap < 0)
+		return "AC";
+
+	return smprintf("Bat %.0f%%", ((float)remcap / (float)descap) * 100);
+}
+
 void
 setstatus(char *str)
 {
@@ -81,7 +137,7 @@ int
 main(void)
 {
 	char *status;
-	char *tmbln;
+	char *battery, *time;
 
 	if (!(dpy = XOpenDisplay(NULL))) {
 		fprintf(stderr, "dwmstatus: cannot open display.\n");
@@ -89,11 +145,13 @@ main(void)
 	}
 
 	for (;;sleep(1)) {
-		tmbln = mktimes("%Y-%m-%d (%u) %H:%M:%S", tztaipei);
+		battery = getbattery("/proc/acpi/battery/BAT0");
+		time = mktimes("%Y-%m-%d (%u) %H:%M:%S", tztaipei);
 
-		status = smprintf("[%s]", tmbln);
+		status = smprintf("%s | %s", battery, time);
 		setstatus(status);
-		free(tmbln);
+		free(time);
+		free(battery);
 		free(status);
 	}
 
