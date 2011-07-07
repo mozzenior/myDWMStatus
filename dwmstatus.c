@@ -121,7 +121,7 @@ getbattery(char *base)
 	fclose(fd);
 
 	if (remcap < 0 || descap < 0)
-		return "AC";
+		return smprintf("AC");
 
 	return smprintf("Bat %.0f%%", ((float)remcap / (float)descap) * 100);
 }
