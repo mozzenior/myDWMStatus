@@ -83,8 +83,8 @@ getbattery(char *base)
 	path = smprintf("%s/info", base);
 	fd = fopen(path, "r");
 	if (fd == NULL) {
-		perror("fopen");
-		exit(1);
+		free(path);
+		return smprintf("AC");
 	}
 	free(path);
 	while (!feof(fd)) {
